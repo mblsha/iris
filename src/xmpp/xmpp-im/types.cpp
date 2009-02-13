@@ -913,8 +913,8 @@ public:
 	HttpAuthRequest httpAuthRequest;
 	XData xdata;
 	QMap<QString,HTMLElement> htmlElements;
- 	QDomElement sxe;
-	
+	QDomElement sxe;
+
 	QList<int> mucStatuses;
 	QList<MUCInvite> mucInvites;
 	MUCDecline mucDecline;
@@ -2222,7 +2222,9 @@ bool Status::isAvailable() const
 
 bool Status::isAway() const
 {
-	return (v_show == "away" || v_show == "xa" || v_show == "dnd");
+	return (v_show == "away" || v_show == "xa"
+	        || v_show == "dnd"
+	       );
 }
 
 bool Status::isInvisible() const

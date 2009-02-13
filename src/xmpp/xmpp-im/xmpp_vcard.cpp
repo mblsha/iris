@@ -172,7 +172,8 @@ bool VCard::Private::isEmpty()
 		!url.isEmpty() ||
 		!desc.isEmpty() ||
 		(privacyClass != pcNone) ||
-		!key.isEmpty() )
+		!key.isEmpty()
+		)
 	{
 		return false;
 	}
@@ -762,6 +763,24 @@ VCard::Address::Address()
 	home = work = postal = parcel = dom = intl = pref = false;
 }
 
+bool VCard::Address::isNull() const
+{
+	return !home             &&
+	       !work             &&
+	       !postal           &&
+	       !parcel           &&
+	       !dom              &&
+	       !intl             &&
+	       !pref             &&
+	       pobox.isNull()    &&
+	       extaddr.isNull()  &&
+	       street.isNull()   &&
+	       locality.isNull() &&
+	       region.isNull()   &&
+	       pcode.isNull()    &&
+	       country.isNull();
+}
+
 VCard::Label::Label()
 {
 	home = work = postal = parcel = dom = intl = pref = false;
@@ -877,6 +896,16 @@ void VCard::setPhoto(const QByteArray &i)
 	d->photo = i;
 }
 
+void VCard::setPhoto(const QImage &i)
+{
+	QByteArray ba;
+	QBuffer buffer(&ba);
+	buffer.open(QIODevice::WriteOnly);
+	i.save(&buffer, "PNG"); // TODO: maybe consider using different format?
+
+	setPhoto(ba);
+}
+
 const QString &VCard::photoURI() const
 {
 	return d->photoURI;
@@ -889,7 +918,7 @@ void VCard::setPhotoURI(const QString &p)
 
 const QDate VCard::bday() const
 {
-	return QDate::fromString(d->bday);
+	return QDate::fromString(d->bday, Qt::ISODate);
 }
 
 void VCard::setBday(const QDate &date)
@@ -915,6 +944,53 @@ const VCard::AddressList &VCard::addressList() const
 void VCard::setAddressList(const VCard::AddressList &a)
 {
 	d->addressList = a;
+}
+
+/**
+ * If addressList() is empty, returns first address in list, otherwise
+ * null Address is returned.
+ */
+VCard::Address VCard::address() const
+{
+	if (addressList().empty())
+		return Address();
+	return addressList().first();
+}
+
+/**
+ * Returns first non-empty locality from the address list, or null QString
+ * otherwise.
+ */
+QString VCard::locality() const
+{
+	foreach(XMPP::VCard::Address address, addressList())
+		if (!address.locality.isEmpty())
+			return address.locality;
+
+	return QString();
+}
+
+/**
+ * Returns first non-empty "locality + region + ctry" combined string,
+ * or null QString otherwise.
+ */
+QString VCard::addressString() const
+{
+	foreach(XMPP::VCard::Address address, addressList()) {
+		if (!address.locality.isEmpty() || !address.region.isEmpty() || !address.country.isEmpty()) {
+			QStringList addr;
+			if (!address.locality.isEmpty())
+				addr << address.locality;
+			if (!address.region.isEmpty())
+				addr << address.region;
+			if (!address.country.isEmpty())
+				addr << address.country;
+
+			return addr.join(", ");
+		}
+	}
+
+	return QString();
 }
 
 const VCard::LabelList &VCard::labelList() const
@@ -945,6 +1021,19 @@ const VCard::EmailList &VCard::emailList() const
 void VCard::setEmailList(const VCard::EmailList &e)
 {
 	d->emailList = e;
+}
+
+/**
+ * Returns first not empty email userid from email list,
+ * or null QString().
+ */
+QString VCard::email() const
+{
+	foreach(XMPP::VCard::Email email, emailList())
+		if (!email.userid.isEmpty())
+			return email.userid;
+
+	return QString();
 }
 
 const QString &VCard::jid() const
@@ -1188,3 +1277,31 @@ void VCard::setKey(const QByteArray &k)
 {
 	d->key = k;
 }
+
+/**
+ * Return person't age, if the birthday is valid and its year is more than 1900,
+ * otherwise -1 is returned.
+ */
+int VCard::age() const
+{
+	QDate birthday = bday();
+	if (!birthday.isValid() || birthday.year() <= 1900)
+		return -1;
+
+	QDate current = QDate::currentDate();
+	int result = current.year() - birthday.year();
+
+	if (current.month() > birthday.month()) {
+		// all right
+	}
+	else if (current.month() == birthday.month()) {
+		if (current.day() < birthday.day())
+			result--;
+	}
+	else {
+		result--;
+	}
+
+	return qMax(result, 0);
+}
+

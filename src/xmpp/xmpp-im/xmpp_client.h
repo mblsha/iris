@@ -150,6 +150,9 @@ namespace XMPP
 
 		void incomingJidLink();
 
+		void beginImportRoster();
+		void endImportRoster();
+
 	private slots:
 		//void streamConnected();
 		//void streamHandshaken();

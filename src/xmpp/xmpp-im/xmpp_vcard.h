@@ -28,6 +28,7 @@
 #include <qdom.h>
 
 class QDate;
+class QImage;
 
 namespace XMPP
 {
@@ -72,6 +73,7 @@ namespace XMPP
 
 		const QByteArray &photo() const;
 		void setPhoto(const QByteArray &);
+		void setPhoto(const QImage &);
 
 		const QString &photoURI() const;
 		void setPhotoURI(const QString &);
@@ -87,6 +89,7 @@ namespace XMPP
 		class Address {
 		public:
 			Address();
+			bool isNull() const;
 
 			bool home;
 			bool work;
@@ -109,6 +112,10 @@ namespace XMPP
 		typedef QList<Address> AddressList;
 		const AddressList &addressList() const;
 		void setAddressList(const AddressList &);
+
+		Address address() const;
+		QString locality() const;
+		QString addressString() const;
 
 		class Label {
 		public:
@@ -171,6 +178,7 @@ namespace XMPP
 		const EmailList &emailList() const;
 		void setEmailList(const EmailList &);
 
+		QString email() const;
 
 		const QString &jid() const;
 		void setJid(const QString &);
@@ -273,6 +281,8 @@ namespace XMPP
 
 		const QByteArray &key() const;
 		void setKey(const QByteArray &);
+
+		int age() const;
 
 	private:
 		class Private;

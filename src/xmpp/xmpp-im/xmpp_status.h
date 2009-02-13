@@ -32,7 +32,9 @@ namespace XMPP
 	class Status
 	{
 	public:
-		enum Type { Offline, Online, Away, XA, DND, Invisible, FFC };
+		enum Type {
+		    Offline, Online, Away, XA, DND, Invisible, FFC
+		};
 
 		Status(const QString &show="", const QString &status="", int priority=0, bool available=true);
 		Status(Type type, const QString& status="", int priority=0);

@@ -689,7 +689,7 @@ bool JT_PushPresence::take(const QDomElement &e)
 			if (found && tag.attribute("xmlns") == "http://jabber.org/protocol/nick") {
 				nick = tagContent(tag);
 			}
-			subscription(j, type, nick);
+			emit subscription(j, type, nick);
 			return true;
 		}
 	}
@@ -771,7 +771,7 @@ bool JT_PushPresence::take(const QDomElement &e)
 		}
 	}
 
-	presence(j, p);
+	emit presence(j, p);
 
 	return true;
 }
@@ -1445,6 +1445,8 @@ bool JT_ServInfo::take(const QDomElement &e)
 
 		QDomElement feature;
 		if (node.isEmpty() || node == client()->capsNode() + "#" + client()->capsVersion()) {
+#ifdef FILETRANSFER
+			// FIXME: isn't it supposed to take info from caps?
 			// Standard features
 			feature = doc()->createElement("feature");
 			feature.setAttribute("var", "http://jabber.org/protocol/bytestreams");
@@ -1457,7 +1459,8 @@ bool JT_ServInfo::take(const QDomElement &e)
 			feature = doc()->createElement("feature");
 			feature.setAttribute("var", "http://jabber.org/protocol/si/profile/file-transfer");
 			query.appendChild(feature);
-			
+#endif
+
 			feature = doc()->createElement("feature");
 			feature.setAttribute("var", "http://jabber.org/protocol/disco#info");
 			query.appendChild(feature);

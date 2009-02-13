@@ -50,6 +50,7 @@ namespace XMPP
 		bool canCommand() const;
 		bool isGateway() const;
 		bool haveVCard() const;
+		bool canMessageReceipts() const;
 
 		enum FeatureID {
 			FID_Invalid = -1,
@@ -67,6 +68,7 @@ namespace XMPP
 		};
 
 		// useful functions
+		bool test(const QString &) const;
 		bool test(const QStringList &) const;
 
 		QString name() const;

@@ -63,6 +63,11 @@ void Features::addFeature(const QString& s)
 	_list += s;
 }
 
+bool Features::test(const QString &ns) const
+{
+	return _list.contains(ns);
+}
+
 bool Features::test(const QStringList &ns) const
 {
 	QStringList::ConstIterator it = ns.begin();
@@ -163,6 +168,15 @@ bool Features::haveVCard() const
 {
 	QStringList ns;
 	ns << FID_VCARD;
+
+	return test(ns);
+}
+
+#define FID_MESSAGE_RECEIPTS "urn:xmpp:receipts"
+bool Features::canMessageReceipts() const
+{
+	QStringList ns;
+	ns << FID_MESSAGE_RECEIPTS;
 
 	return test(ns);
 }
