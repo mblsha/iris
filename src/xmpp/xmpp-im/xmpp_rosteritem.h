@@ -66,6 +66,12 @@ namespace XMPP
 		bool addGroup(const QString &);
 		bool removeGroup(const QString &);
 
+#ifdef YAPSI
+		bool yaMoodSet() const;
+		QString yaMood() const;
+		void setYaMood(const QString& mood, bool set);
+#endif
+
 		QDomElement toXml(QDomDocument *) const;
 		bool fromXml(const QDomElement &);
 
@@ -76,6 +82,10 @@ namespace XMPP
 		Subscription v_subscription;
 		QString v_ask;
 		bool v_push;
+#ifdef YAPSI
+		QString v_yaMood;
+		bool v_yaMoodSet;
+#endif
 	};
 }
 

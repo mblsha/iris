@@ -1144,6 +1144,9 @@ void LiveRosterItem::setRosterItem(const RosterItem &i)
 	setSubscription(i.subscription());
 	setAsk(i.ask());
 	setIsPush(i.isPush());
+#ifdef YAPSI
+	setYaMood(i.yaMood(), i.yaMoodSet());
+#endif
 }
 
 ResourceList & LiveRosterItem::resourceList()

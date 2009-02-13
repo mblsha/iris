@@ -126,6 +126,10 @@ public:
 	QString desc;
 	PrivacyClass privacyClass;
 	QByteArray key;
+#ifdef YAPSI
+	Gender gender;
+	QString mood;
+#endif
 
 	bool isEmpty();
 };
@@ -134,6 +138,9 @@ VCard::Private::Private()
 {
 	privacyClass = pcNone;
 	agent = 0;
+#ifdef YAPSI
+	gender = UnknownGender;
+#endif
 }
 
 VCard::Private::~Private()
@@ -173,6 +180,10 @@ bool VCard::Private::isEmpty()
 		!desc.isEmpty() ||
 		(privacyClass != pcNone) ||
 		!key.isEmpty()
+#ifdef YAPSI
+		|| (gender != UnknownGender) ||
+		!mood.isEmpty()
+#endif
 		)
 	{
 		return false;
@@ -519,6 +530,16 @@ QDomElement VCard::toXml(QDomDocument *doc) const
 		v.appendChild(w);
 	}
 
+#ifdef YAPSI
+	if ( d->gender != UnknownGender ) {
+		v.appendChild( textTag(doc, "GENDER", d->gender == Male ? "m" : "f") );
+	}
+
+	if ( !d->mood.isEmpty() ) {
+		v.appendChild( textTag(doc, "MOOD", d->mood) );
+	}
+#endif
+
 	return v;
 }
 
@@ -746,6 +767,20 @@ bool VCard::fromXml(const QDomElement &q)
 			if ( found )
 				d->key = e.text().toUtf8(); // FIXME
 		}
+#ifdef YAPSI
+		else if ( tag == "GENDER" ) {
+			QString gender = i.text().trimmed().toLower();
+			if ( gender == "m" )
+				d->gender = Male;
+			else if ( gender == "f" )
+				d->gender = Female;
+			else
+				d->gender = UnknownGender;
+		}
+		else if ( tag == "MOOD" ) {
+			d->mood = i.text().trimmed();
+		}
+#endif
 	}
 
 	return true;
@@ -1305,3 +1340,24 @@ int VCard::age() const
 	return qMax(result, 0);
 }
 
+#ifdef YAPSI
+VCard::Gender VCard::gender() const
+{
+	return d->gender;
+}
+
+void VCard::setGender(VCard::Gender gender)
+{
+	d->gender = gender;
+}
+
+QString VCard::mood() const
+{
+	return d->mood;
+}
+
+void VCard::setMood(const QString& mood)
+{
+	d->mood = mood;
+}
+#endif

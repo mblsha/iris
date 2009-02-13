@@ -284,6 +284,18 @@ namespace XMPP
 
 		int age() const;
 
+#ifdef YAPSI
+		enum Gender {
+			UnknownGender = 0,
+			Male,
+			Female
+		};
+		Gender gender() const;
+		void setGender(Gender);
+
+		QString mood() const;
+		void setMood(const QString&);
+#endif
 	private:
 		class Private;
 		Private *d;

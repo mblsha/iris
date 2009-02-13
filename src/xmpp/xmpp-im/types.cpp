@@ -29,6 +29,10 @@
 #include "xmpp_xmlcommon.h"
 #define NS_XML     "http://www.w3.org/XML/1998/namespace"
 
+#ifdef YAPSI
+#include "xmpp_yalastmail.h"
+#endif
+
 namespace XMPP
 {
 
@@ -915,6 +919,11 @@ public:
 	QMap<QString,HTMLElement> htmlElements;
 	QDomElement sxe;
 
+#ifdef YAPSI
+	YaLastMail lastMailNotify;
+	int spamFlag;
+#endif
+
 	QList<int> mucStatuses;
 	QList<MUCInvite> mucInvites;
 	MUCDecline mucDecline;
@@ -941,6 +950,9 @@ Message::Message(const Jid &to)
 	d->errorCode = -1;*/
 	d->chatState = StateNone;
 	d->messageReceipt = ReceiptNone;
+#ifdef YAPSI
+	d->spamFlag = 0;
+#endif
 }
 
 //! \brief Constructs a copy of Message object
@@ -1400,6 +1412,24 @@ void Message::setWasEncrypted(bool b)
 	d->wasEncrypted = b;
 }
 
+#ifdef YAPSI
+const YaLastMail& XMPP::Message::lastMailNotify() const
+{
+	return d->lastMailNotify;
+}
+
+void XMPP::Message::setLastMailNotify(const YaLastMail& lastMailNotify)
+{
+	d->lastMailNotify = lastMailNotify;
+	setType("headline");
+}
+
+const int XMPP::Message::spamFlag() const
+{
+	return d->spamFlag;
+}
+#endif
+
 Stanza Message::toStanza(Stream *stream) const
 {
 	Stanza s = stream->createStanza(Stanza::Message, d->to, d->type);
@@ -1593,6 +1623,26 @@ Stanza Message::toStanza(Stream *stream) const
 		bool submit = (d->xdata.type() == XData::Data_Submit) || (d->xdata.type() == XData::Data_Cancel);
 		s.appendChild(d->xdata.toXml(&s.doc(), submit));
 	}
+
+#ifdef YAPSI
+	if (!d->lastMailNotify.isNull()) {
+		QDomElement x_notify = s.createElement("yandex:informer", "x-notify");
+		x_notify.setAttribute("type", "lastmail");
+
+		x_notify.appendChild(s.createTextElement("yandex:informer", "subject", d->lastMailNotify.subject));
+		x_notify.appendChild(s.createTextElement("yandex:informer", "from",    d->lastMailNotify.from));
+		x_notify.appendChild(s.createTextElement("yandex:informer", "date",    QString::number(d->lastMailNotify.timeStamp.toTime_t())));
+		x_notify.appendChild(s.createTextElement("yandex:informer", "subject", d->lastMailNotify.subject));
+		x_notify.appendChild(s.createTextElement("yandex:informer", "mid",     d->lastMailNotify.mid));
+
+		s.appendChild(x_notify);
+	}
+
+	if (d->spamFlag != 0) {
+		QDomElement spamooborona = s.createTextElement("yandex:jabber:so", "spamooborona", QString::number(d->spamFlag));
+		s.appendChild(spamooborona);
+	}
+#endif
 
 	return s;
 }
@@ -1837,6 +1887,33 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 	if(!t.isNull()){
 		d->xdata.fromXml(t);
 	}
+
+#ifdef YAPSI
+	if (type() == "headline") {
+		t = root.elementsByTagNameNS("yandex:informer", "x-notify").item(0).toElement();
+		if (!t.isNull()) {
+			if (t.attribute("type") == "lastmail") {
+				d->lastMailNotify = YaLastMail();
+				d->lastMailNotify.subject   = XMLHelper::subTagText(t, "subject");
+				d->lastMailNotify.from      = XMLHelper::subTagText(t, "from");
+				d->lastMailNotify.timeStamp = QDateTime::fromTime_t(XMLHelper::subTagText(t, "date").toUInt());
+				d->lastMailNotify.mid       = XMLHelper::subTagText(t, "mid");
+
+				QRegExp midRegExp("^\\d+$");
+				if (!midRegExp.exactMatch(d->lastMailNotify.mid) ||
+				    (from().userHost() != "lastmail.ya.ru")) {
+					qWarning("Got incorrect lastmail message from '%s'", qPrintable(from().full()));
+					d->lastMailNotify = YaLastMail();
+				}
+			}
+		}
+	}
+	// <spamooborona xmlns='yandex:jabber:so'>0</spamooborona>
+	t = root.elementsByTagNameNS("yandex:jabber:so", "spamooborona").item(0).toElement();
+	if (!t.isNull()) {
+		d->spamFlag = t.text().toInt();
+	}
+#endif
 
 	return true;
 }
@@ -2102,6 +2179,11 @@ void Status::setType(Status::Type _type)
 		case DND:     show = "dnd"; break;
 		case Offline: available = false; break;
 		case Invisible: invisible = true; break;
+#ifdef YAPSI
+		case Blocked:      show = "blocked"; break;
+		case Reconnecting: show = "reconnecting"; break;
+		case NotAuthorizedToSeeStatus: show = "not-authorized"; break;
+#endif
 		default: break;
 	}
 	setShow(show);
@@ -2125,6 +2207,14 @@ void Status::setType(QString stat)
 		setType(XMPP::Status::Invisible);
 	else if (stat == "chat")
 		setType(XMPP::Status::FFC);
+#ifdef YAPSI
+	else if (stat == "blocked")
+		setType(XMPP::Status::Blocked);
+	else if (stat == "reconnecting")
+		setType(XMPP::Status::Reconnecting);
+	else if (stat == "not-authorized")
+		setType(XMPP::Status::NotAuthorizedToSeeStatus);
+#endif
 	else
 		setType(XMPP::Status::Away);
 }
@@ -2223,7 +2313,9 @@ bool Status::isAvailable() const
 bool Status::isAway() const
 {
 	return (v_show == "away" || v_show == "xa"
+#ifdef YAPSI
 	        || v_show == "dnd"
+#endif
 	       );
 }
 
@@ -2256,6 +2348,14 @@ Status::Type Status::type() const
 		 	type = Status::DND;
 		else if (s == "chat")
 			type = Status::FFC;
+#ifdef YAPSI
+		else if (s == "blocked")
+			type = Status::Blocked;
+		else if (s == "reconnecting")
+			type = Status::Reconnecting;
+		else if (s == "not-authorized")
+			type = Status::NotAuthorizedToSeeStatus;
+#endif
 	}
 	return type;
 }
@@ -2271,6 +2371,11 @@ QString Status::typeString() const
 		case XMPP::Status::DND: stat = "dnd"; break;
 		case XMPP::Status::Invisible: stat = "invisible"; break;
 		case XMPP::Status::FFC: stat = "chat"; break;
+#ifdef YAPSI
+		case XMPP::Status::Blocked: stat = "blocked"; break;
+		case XMPP::Status::Reconnecting: stat = "reconnecting"; break;
+		case NotAuthorizedToSeeStatus: stat = "not-authorized"; break;
+#endif
 		default: stat = "away";
 	}
 	return stat;
@@ -2499,6 +2604,9 @@ RosterItem::RosterItem(const Jid &_jid)
 {
 	v_jid = _jid;
 	v_push = false;
+#ifdef YAPSI
+	v_yaMoodSet = false;
+#endif
 }
 
 RosterItem::~RosterItem()
@@ -2595,6 +2703,24 @@ bool RosterItem::removeGroup(const QString &g)
 	return false;
 }
 
+#ifdef YAPSI
+bool XMPP::RosterItem::yaMoodSet() const
+{
+	return v_yaMoodSet;
+}
+
+QString RosterItem::yaMood() const
+{
+	return v_yaMood;
+}
+
+void RosterItem::setYaMood(const QString& mood, bool set)
+{
+	v_yaMood = mood;
+	v_yaMoodSet = set;
+}
+#endif
+
 QDomElement RosterItem::toXml(QDomDocument *doc) const
 {
 	QDomElement item = doc->createElement("item");
@@ -2605,6 +2731,14 @@ QDomElement RosterItem::toXml(QDomDocument *doc) const
 		item.setAttribute("ask", v_ask);
 	for(QStringList::ConstIterator it = v_groups.begin(); it != v_groups.end(); ++it)
 		item.appendChild(textTag(doc, "group", *it));
+
+#ifdef YAPSI
+	{
+		QDomElement e = textTag(doc, "yaMood", v_yaMood);
+		e.setAttribute("set", v_yaMoodSet ? "true" : "false");
+		item.appendChild(e);
+	}
+#endif
 
 	return item;
 }
@@ -2635,6 +2769,17 @@ bool RosterItem::fromXml(const QDomElement &item)
 	v_subscription = s;
 	v_groups = g;
 	v_ask = a;
+
+#ifdef YAPSI
+	{
+		bool found;
+		QDomElement i = findSubTag(item, "yaMood", &found);
+		if (found) {
+			v_yaMood = i.text();
+			v_yaMoodSet = i.attribute("set") == "true";
+		}
+	}
+#endif
 
 	return true;
 }

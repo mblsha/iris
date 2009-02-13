@@ -30,6 +30,9 @@
 
 class QString;
 class QDateTime;
+#ifdef YAPSI
+class YaLastMail;
+#endif
 
 namespace XMPP {
 	class Jid;
@@ -158,6 +161,12 @@ namespace XMPP {
 
 		Stanza toStanza(Stream *stream) const;
 		bool fromStanza(const Stanza &s, int tzoffset);
+
+#ifdef YAPSI
+		const YaLastMail& lastMailNotify() const;
+		void setLastMailNotify(const YaLastMail& lastMailNotify);
+		const int spamFlag() const;
+#endif
 
 	private:
 		class Private;

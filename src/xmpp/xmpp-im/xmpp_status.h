@@ -34,6 +34,9 @@ namespace XMPP
 	public:
 		enum Type {
 		    Offline, Online, Away, XA, DND, Invisible, FFC
+#ifdef YAPSI
+		    , Blocked, Reconnecting, NotAuthorizedToSeeStatus
+#endif
 		};
 
 		Status(const QString &show="", const QString &status="", int priority=0, bool available=true);
