@@ -165,7 +165,7 @@ namespace XMPP {
 #ifdef YAPSI
 		const YaLastMail& lastMailNotify() const;
 		void setLastMailNotify(const YaLastMail& lastMailNotify);
-		const int spamFlag() const;
+		int spamFlag() const;
 #endif
 
 		const QDomElement& getExtension(const QString& ns) const;

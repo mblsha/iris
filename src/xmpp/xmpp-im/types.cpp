@@ -1426,7 +1426,7 @@ void XMPP::Message::setLastMailNotify(const YaLastMail& lastMailNotify)
 	setType("headline");
 }
 
-const int XMPP::Message::spamFlag() const
+int XMPP::Message::spamFlag() const
 {
 	return d->spamFlag;
 }
@@ -1939,12 +1939,14 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 				}
 			}
 		}
+		XMLHelper::removeNodes(root, t);
 	}
 	// <spamooborona xmlns='yandex:jabber:so'>0</spamooborona>
 	t = root.elementsByTagNameNS("yandex:jabber:so", "spamooborona").item(0).toElement();
 	if (!t.isNull()) {
 		d->spamFlag = t.text().toInt();
 	}
+	XMLHelper::removeNodes(root, t);
 #endif
 
 	{
