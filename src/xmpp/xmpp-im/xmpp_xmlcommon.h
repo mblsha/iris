@@ -99,6 +99,10 @@ namespace XMLHelper {
 	void readBoolAttribute(QDomElement e, const QString &name, bool *v);
 
 	//QString tagContent(const QDomElement &e); // obsolete;
+
+	void removeNodes(QDomElement& root, const QDomNodeList& nl);
+	void removeNodes(QDomElement& root, const XDomNodeList& nl);
+	void removeNodes(QDomElement& root, const QDomElement& n);
 }
 
 #endif

@@ -168,6 +168,8 @@ namespace XMPP {
 		const int spamFlag() const;
 #endif
 
+		const QDomElement& getExtension(const QString& ns) const;
+
 	private:
 		class Private;
 		Private *d;

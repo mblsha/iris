@@ -561,5 +561,32 @@ void readBoolAttribute(QDomElement e, const QString &name, bool *v)
 	}
 }
 
+void removeNodes(QDomElement& root, const QDomNodeList& nl)
+{
+	for (int i = 0; i < nl.count(); ++i) {
+		QDomElement e = nl.item(i).toElement();
+		if (e.isNull())
+			continue;
+		root.removeChild(e);
+	}
+}
+
+void removeNodes(QDomElement& root, const XDomNodeList& nl)
+{
+	for (int i = 0; i < nl.count(); ++i) {
+		QDomElement e = nl.item(i).toElement();
+		if (e.isNull())
+			continue;
+		root.removeChild(e);
+	}
+}
+
+void removeNodes(QDomElement& root, const QDomElement& n)
+{
+	if (n.isNull())
+		return;
+	root.removeChild(n);
+}
+
 };
 

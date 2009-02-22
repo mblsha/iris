@@ -930,6 +930,8 @@ public:
 	QString mucPassword;
 
 	bool spooled, wasEncrypted;
+
+	QHash<QString, QDomElement> unknownExtensions;
 };
 
 //! \brief Constructs Message with given Jid information.
@@ -1430,6 +1432,11 @@ const int XMPP::Message::spamFlag() const
 }
 #endif
 
+const QDomElement& XMPP::Message::getExtension(const QString& ns) const
+{
+	return d->unknownExtensions[ns];
+}
+
 Stanza Message::toStanza(Stream *stream) const
 {
 	Stanza s = stream->createStanza(Stanza::Message, d->to, d->type);
@@ -1652,6 +1659,8 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 	if(s.kind() != Stanza::Message)
 		return false;
 
+	d->unknownExtensions.clear();
+
 	setTo(s.to());
 	setFrom(s.from());
 	setId(s.id());
@@ -1680,8 +1689,10 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 					QString lang = e.attributeNS(NS_XML, "lang", "");
 					d->body[lang] = e.text();
 				}
-				else if(e.tagName() == "thread")
+				else if(e.tagName() == "thread") {
 					d->thread = e.text();
+				}
+				XMLHelper::removeNodes(root, e);
 			}
 			else if(e.tagName() == "event" && e.namespaceURI() == "http://jabber.org/protocol/pubsub#event") {
 				for(QDomNode enode = e.firstChild(); !enode.isNull(); enode = enode.nextSibling()) {
@@ -1704,6 +1715,7 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 						}
 					}
 				}
+				XMLHelper::removeNodes(root, e);
 			}
 			else {
 				//printf("extension element: [%s]\n", e.tagName().latin1());
@@ -1717,15 +1729,16 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 	// xhtml-im
 	nl = childElementsByTagNameNS(root, "http://jabber.org/protocol/xhtml-im", "html");
 	if (nl.count()) {
-		nl = nl.item(0).childNodes();
-		for(n = 0; n < nl.count(); ++n) {
-			QDomElement e = nl.item(n).toElement();
+		QDomNodeList nl2 = nl.item(0).childNodes();
+		for(n = 0; n < nl2.count(); ++n) {
+			QDomElement e = nl2.item(n).toElement();
 			if (e.tagName() == "body" && e.namespaceURI() == "http://www.w3.org/1999/xhtml") {
 				QString lang = e.attributeNS(NS_XML, "lang", "");
 				d->htmlElements[lang] = e;
 			}
 		}
 	}
+	XMLHelper::removeNodes(root, nl);
 
 	// timestamp
 	QDomElement t = childElementsByTagNameNS(root, "jabber:x:delay", "x").item(0).toElement();
@@ -1738,6 +1751,7 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 		d->timeStamp = QDateTime::currentDateTime();
 		d->spooled = false;
 	}
+	XMLHelper::removeNodes(root, t);
 
 	// urls
 	d->urlList.clear();
@@ -1749,16 +1763,17 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 		u.setDesc(t.elementsByTagName("desc").item(0).toElement().text());
 		d->urlList += u;
 	}
-	
-    // events
+	XMLHelper::removeNodes(root, nl);
+
+	// events
 	d->eventList.clear();
 	nl = childElementsByTagNameNS(root, "jabber:x:event", "x");
 	if (nl.count()) {
-		nl = nl.item(0).childNodes();
-		for(n = 0; n < nl.count(); ++n) {
-			QString evtag = nl.item(n).toElement().tagName();
+		QDomNodeList nl2 = nl.item(0).childNodes();
+		for(n = 0; n < nl2.count(); ++n) {
+			QString evtag = nl2.item(n).toElement().tagName();
 			if (evtag == "id") {
-				d->eventId =  nl.item(n).toElement().text();
+				d->eventId = nl2.item(n).toElement().text();
 			}
 			else if (evtag == "displayed")
 				d->eventList += DisplayedEvent;
@@ -1770,33 +1785,41 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 		if (d->eventList.isEmpty())
 			d->eventList += CancelEvent;
 	}
+	XMLHelper::removeNodes(root, nl);
 
 	// Chat states
 	QString chatStateNS = "http://jabber.org/protocol/chatstates";
 	t = childElementsByTagNameNS(root, chatStateNS, "active").item(0).toElement();
 	if(!t.isNull())
 		d->chatState = StateActive;
+	XMLHelper::removeNodes(root, t);
 	t = childElementsByTagNameNS(root, chatStateNS, "composing").item(0).toElement();
 	if(!t.isNull())
 		d->chatState = StateComposing;
+	XMLHelper::removeNodes(root, t);
 	t = childElementsByTagNameNS(root, chatStateNS, "paused").item(0).toElement();
 	if(!t.isNull())
 		d->chatState = StatePaused;
+	XMLHelper::removeNodes(root, t);
 	t = childElementsByTagNameNS(root, chatStateNS, "inactive").item(0).toElement();
 	if(!t.isNull())
 		d->chatState = StateInactive;
+	XMLHelper::removeNodes(root, t);
 	t = childElementsByTagNameNS(root, chatStateNS, "gone").item(0).toElement();
 	if(!t.isNull())
 		d->chatState = StateGone;
+	XMLHelper::removeNodes(root, t);
 
 	// message receipts
 	QString messageReceiptNS = "urn:xmpp:receipts";
 	t = childElementsByTagNameNS(root, messageReceiptNS, "request").item(0).toElement();
 	if(!t.isNull())
 		d->messageReceipt = ReceiptRequest;
+	XMLHelper::removeNodes(root, t);
 	t = childElementsByTagNameNS(root, messageReceiptNS, "received").item(0).toElement();
 	if(!t.isNull())
 		d->messageReceipt = ReceiptReceived;
+	XMLHelper::removeNodes(root, t);
 
 	// xencrypted
 	t = childElementsByTagNameNS(root, "jabber:x:encrypted", "x").item(0).toElement();
@@ -1804,30 +1827,33 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 		d->xencrypted = t.text();
 	else
 		d->xencrypted = QString();
-		
+	XMLHelper::removeNodes(root, t);
+
 	// addresses
 	d->addressList.clear();
 	nl = childElementsByTagNameNS(root, "http://jabber.org/protocol/address", "addresses");
 	if (nl.count()) {
 		QDomElement t = nl.item(0).toElement();
-		nl = t.elementsByTagName("address");
-		for(n = 0; n < nl.count(); ++n) {
-			d->addressList += Address(nl.item(n).toElement());
+		QDomNodeList nl2 = t.elementsByTagName("address");
+		for(n = 0; n < nl2.count(); ++n) {
+			d->addressList += Address(nl2.item(n).toElement());
 		}
 	}
-	
+	XMLHelper::removeNodes(root, nl);
+
 	// roster item exchange
 	d->rosterExchangeItems.clear();
 	nl = childElementsByTagNameNS(root, "http://jabber.org/protocol/rosterx", "x");
 	if (nl.count()) {
 		QDomElement t = nl.item(0).toElement();
-		nl = t.elementsByTagName("item");
-		for(n = 0; n < nl.count(); ++n) {
-			RosterExchangeItem it = RosterExchangeItem(nl.item(n).toElement());
+		QDomNodeList nl2 = t.elementsByTagName("item");
+		for(n = 0; n < nl2.count(); ++n) {
+			RosterExchangeItem it = RosterExchangeItem(nl2.item(n).toElement());
 			if (!it.isNull())
 				d->rosterExchangeItems += it;
 		}
 	}
+	XMLHelper::removeNodes(root, nl);
 
 	// invite
 	t = childElementsByTagNameNS(root, "jabber:x:conference", "x").item(0).toElement();
@@ -1835,13 +1861,15 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 		d->invite = t.attribute("jid");
 	else
 		d->invite = QString();
-	
+	XMLHelper::removeNodes(root, t);
+
 	// nick
 	t = childElementsByTagNameNS(root, "http://jabber.org/protocol/nick", "nick").item(0).toElement();
 	if(!t.isNull())
 		d->nick = t.text();
 	else
 		d->nick = QString();
+	XMLHelper::removeNodes(root, t);
 
 	// sxe
 	t = childElementsByTagNameNS(root, "http://jabber.org/protocol/sxe", "sxe").item(0).toElement();
@@ -1849,6 +1877,7 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 		d->sxe = t;
 	else
 		d->sxe = QDomElement();
+	XMLHelper::removeNodes(root, t);
 
 	t = childElementsByTagNameNS(root, "http://jabber.org/protocol/muc#user", "x").item(0).toElement();
 	if(!t.isNull()) {
@@ -1872,6 +1901,7 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 			}
 		}
 	}
+	XMLHelper::removeNodes(root, t);
 
 	// http auth
 	t = childElementsByTagNameNS(root, "http://jabber.org/protocol/http-auth", "confirm").item(0).toElement();
@@ -1881,12 +1911,14 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 	else {
 		d->httpAuthRequest = HttpAuthRequest();
 	}
+	XMLHelper::removeNodes(root, t);
 
 	// data form
 	t = childElementsByTagNameNS(root, "jabber:x:data", "x").item(0).toElement();
 	if(!t.isNull()){
 		d->xdata.fromXml(t);
 	}
+	XMLHelper::removeNodes(root, t);
 
 #ifdef YAPSI
 	if (type() == "headline") {
@@ -1914,6 +1946,19 @@ bool Message::fromStanza(const Stanza &s, int timeZoneOffset)
 		d->spamFlag = t.text().toInt();
 	}
 #endif
+
+	{
+		for (QDomNode n = root.firstChild(); !n.isNull(); n = n.nextSibling()) {
+			QDomElement i = n.toElement();
+			if (i.isNull())
+				continue;
+
+			if (i.namespaceURI() != s.baseNS()) {
+				// qWarning("unknownExtensions: '%s', '%s'", qPrintable(i.tagName()), qPrintable(i.namespaceURI()));
+				d->unknownExtensions[i.namespaceURI()] = i;
+			}
+		}
+	}
 
 	return true;
 }
